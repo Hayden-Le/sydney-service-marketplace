@@ -1,0 +1,18 @@
+## Project Setup Progress
+
+**Section A: Setup & Tooling - COMPLETE**
+
+- Initialized the pnpm project and configured the workspace in `package.json` and `pnpm-workspace.yaml`.
+- Scaffolded the Next.js application in `apps/web`.
+- Installed all core dependencies for the root workspace (Prisma, Supabase, Stripe, etc.).
+- Configured Tailwind CSS and installed required shadcn/ui components in the `apps/web` project.
+
+**Section B: Accounts & env - COMPLETE**
+
+- Created the `apps/web/.env.local` file.
+- Acquired and configured all required API keys and environment variables from Supabase, Stripe, Mapbox, and Resend.
+- Authenticated the Stripe CLI.
+
+**Next Step:**
+
+- Proceed to **Section C: Database & RLS**, starting with modeling the database schema in Prisma.

@@ -1,0 +1,249 @@
+Here’s a crisp, **step-by-step checklist** you can follow from zero → demo. Copy/paste as you go.
+
+## A) Setup & tooling
+
+1. **Create repo + workspaces**
+
+```bash
+git init
+mkdir -p apps/web packages/db packages/ui .github/workflows
+pnpm init -y
+```
+
+2. **Scaffold Next.js app**
+
+```bash
+pnpm create next-app@latest apps/web --ts --eslint --tailwind --app --src-dir
+```
+
+3. **Install core deps (root)**
+
+```bash
+pnpm add -w prisma @prisma/client zod react-hook-form @tanstack/react-query date-fns date-fns-tz
+pnpm add -w @supabase/supabase-js @supabase/auth-helpers-nextjs stripe
+pnpm add -w class-variance-authority lucide-react @radix-ui/react-dialog @radix-ui/react-toast
+pnpm add -w vitest @playwright/test ts-node
+pnpm dlx prisma init --datasource-provider postgresql
+```
+
+4. **Set up Tailwind/shadcn (web)**
+
+```bash
+cd apps/web
+pnpm dlx shadcn@latest init
+pnpm dlx shadcn@latest add button card input textarea badge avatar table dialog toast dropdown-menu form
+cd ../..
+```
+
+5. **Define pnpm workspaces (root `package.json`)**
+
+```json
+{ "private": true, "workspaces": ["apps/*","packages/*"] }
+```
+
+## B) Accounts & env
+
+6. **Create Supabase project** → copy `URL`, `anon`, `service_role`, `DATABASE_URL`.
+7. **Create Stripe (test)** → get `STRIPE_SECRET_KEY`.
+8. **Create Mapbox token** (public).
+9. **Create Resend (or SMTP)** → `RESEND_API_KEY`.
+10. **Create env file** `apps/web/.env.local`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+DATABASE_URL=postgresql://...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...   # fill after step 24
+NEXT_PUBLIC_MAPBOX_TOKEN=...
+RESEND_API_KEY=...
+```
+
+## C) Database & RLS
+
+11. **Model schema (Prisma)** in `packages/db/prisma/schema.prisma`:
+
+* Models: `User`, `ProviderProfile`, `Listing`, `AvailabilitySlot`, `Booking`, `Payment`, `Thread`, `Message`, `Review`, `AdminFlag`, `AuditLog`.
+* Add indexes (title/category, startsAt+listingId, status).
+
+12. **Generate & migrate**
+
+```bash
+pnpm -w dlx prisma generate
+pnpm -w dlx prisma migrate dev -m "init schema"
+```
+
+13. **Write simple RLS policies** (SQL) so:
+
+* Providers edit only their profile/listings/slots.
+* Customers read listings; only their bookings/messages.
+* Admin bypass.
+  (Execute in Supabase SQL editor.)
+
+## D) Seed data
+
+14. **Create `packages/db/seed.ts`** to insert:
+
+* \~20 providers (Sydney suburbs), 3 listings each, 6–10 slots, a few reviews.
+
+```bash
+pnpm ts-node packages/db/seed.ts
+```
+
+## E) App shell & auth
+
+15. **App layout & providers**
+
+* `apps/web/src/app/layout.tsx`: navbar with role chip; Toaster.
+* Add QueryClientProvider & Supabase helpers.
+
+16. **Auth pages**
+
+* `/auth/sign-in`, `/auth/sign-up` using Supabase Auth helpers.
+* Server helper to read session; middleware to guard routes.
+
+## F) Provider onboarding
+
+17. **Onboarding page** `/providers/onboarding`
+
+* RHF + Zod; fields: displayName, ABN (stub 11-digit), GST toggle, bio, hero photo → Supabase Storage.
+* Save via server action → Prisma.
+* Show role badge “PROVIDER”.
+
+## G) Listings
+
+18. **Provider listings**
+
+* Pages: `/providers/listings`, `/providers/listings/new`, `/providers/listings/:id`.
+* API routes `/api/listings` (POST/PUT/DELETE) with Zod validation.
+* Public SSR detail: `/l/:listingId` (photos, price, rating, availability calendar).
+
+## H) Search + map
+
+19. **SSR search route** `/search?...`
+
+* Filters: `query`, `category`, `lat/lng`, `radius_km`, `page`.
+* SQL: `ILIKE` or ts\_vector; simple Haversine/radius.
+
+20. **Mapbox client component**
+
+* Render markers from SSR results; click marker scrolls to card.
+
+## I) Availability
+
+21. **Slots UI**
+
+* Provider adds one-off/repeating slots; materialize next 2 weeks.
+* State: `OPEN → HELD (expiresAt) → BOOKED` (or revert to OPEN on expiry).
+* Public `GET /api/listings/:id/slots` for calendar.
+
+## J) Booking & GST
+
+22. **Booking page** `/l/:id/book`
+
+* Server action: validate `OPEN` → set `HELD` with 10-min TTL.
+* Compute totals: `subtotal=price*hours`, `gst=round(subtotal*0.10)`, `total=subtotal+gst`.
+* Create `Booking` status `PENDING_PAYMENT`.
+
+## K) Payments (Stripe test)
+
+23. **Create PaymentIntent**
+
+* `POST /api/payments/create-intent` with `bookingId` → returns client secret.
+* Client confirm with test card `4242 4242 4242 4242`.
+
+24. **Webhook handler**
+
+* `POST /api/stripe/webhook`: on `payment_intent.succeeded` → set Booking `PAID`, Slot `BOOKED`, create `Payment` row, write `AuditLog`, send receipt email.
+* Store processed `event.id` (idempotency).
+* **Stripe CLI (dev):**
+
+```bash
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+# copy the whsec_... to STRIPE_WEBHOOK_SECRET
+```
+
+## L) Chat (realtime) & reviews
+
+25. **Threads + messages**
+
+* On booking creation, create `Thread` (customer+provider).
+* Page `/messages/:threadId`: fetch history + Supabase Realtime subscribe.
+
+26. **Reviews**
+
+* After `PAID` and `endsAt < now()`, allow single review per booking via `/api/reviews`.
+* Update `avg_rating` on listing.
+
+## M) Admin mini-console
+
+27. **Admin page** `/admin`
+
+* Tabs: Users, Listings, Flags, Bookings.
+* Actions: toggle listing active, mark flag resolved, link to Stripe dashboard for refunds.
+* Guard by `role===ADMIN`; log actions to `AuditLog`.
+
+## N) PWA (light)
+
+28. **Install basics**
+
+* Manifest + icons; simple service worker to cache shell and last search results.
+* Optional: queue unsent chat in IndexedDB and flush on reconnect.
+
+## O) Tests & CI
+
+29. **Unit (Vitest)**
+
+* GST math, slot state transitions, Zod schema guards.
+
+30. **Integration**
+
+* Listing CRUD with RLS; booking flow `HELD→PAID`.
+
+31. **E2E (Playwright)**
+
+* (1) Sign up → search → book → pay → receipt
+* (2) Provider onboarding → listing → slots visible
+* (3) Double-click Pay blocked
+* (4) Chat live
+* (5) Review gating
+* (6) Admin deactivate hides from search
+
+32. **GitHub Actions**
+
+* Lint + unit/integration on PR; E2E on main/nightly.
+
+## P) Deploy & verify
+
+33. **Vercel**
+
+* Import GitHub repo → set env vars (same as `.env.local`).
+
+34. **Supabase**
+
+* Run migrations & seed again (if needed).
+
+35. **Stripe webhook (prod)**
+
+* Add Vercel URL → `STRIPE_WEBHOOK_SECRET` in Vercel.
+
+36. **Smoke test**
+
+* Full happy path on live URL; Lighthouse ≥ 90; axe clean.
+
+## Q) Demo prep
+
+37. **Create 3 demo users**: customer, provider, admin.
+38. **Open Stripe Dashboard** (test mode) to show live events.
+39. **Rehearse 8–12 min script**: onboarding → create listing → search/map → book/pay → chat → review → admin toggle.
+
+---
+
+If you want, I can generate:
+
+* a **Prisma schema + seed.ts**,
+* skeleton **Route Handlers** for listings/slots/bookings/payments/webhook,
+* and a minimal **Playwright** suite
+
+so you can start from step 14 onward.

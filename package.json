@@ -1,0 +1,44 @@
+{
+  "name": "sydney-service-marketplace",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "description": "A lean, interview‑ready marketplace for local services (Airtasker‑style) that proves full‑stack craft: auth, provider onboarding, search + map, booking + Stripe (test), receipts, basic chat, admin moderation, tests, and a deployed URL. Built to run on free/near‑free tiers.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hayden-Le/sydney-service-marketplace.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Hayden-Le/sydney-service-marketplace/issues"
+  },
+  "homepage": "https://github.com/Hayden-Le/sydney-service-marketplace#readme",
+  "dependencies": {
+    "@playwright/test": "^1.55.0",
+    "@prisma/client": "^6.16.2",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-toast": "^1.2.15",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/supabase-js": "^2.57.4",
+    "@tanstack/react-query": "^5.89.0",
+    "class-variance-authority": "^0.7.1",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "lucide-react": "^0.544.0",
+    "prisma": "^6.16.2",
+    "react-hook-form": "^7.62.0",
+    "stripe": "^18.5.0",
+    "ts-node": "^10.9.2",
+    "vitest": "^3.2.4",
+    "zod": "^4.1.9"
+  }
+}
