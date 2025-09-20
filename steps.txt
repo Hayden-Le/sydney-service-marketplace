@@ -74,7 +74,7 @@ pnpm -w dlx prisma generate
 pnpm -w dlx prisma migrate dev -m "init schema"
 ```
 
-13. **Write simple RLS policies** (SQL) so:
+13. ✅ **Write simple RLS policies** (SQL) so:
 
 * Providers edit only their profile/listings/slots.
 * Customers read listings; only their bookings/messages.

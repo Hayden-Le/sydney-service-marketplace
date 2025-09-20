@@ -13,6 +13,17 @@
 - Acquired and configured all required API keys and environment variables from Supabase, Stripe, Mapbox, and Resend.
 - Authenticated the Stripe CLI.
 
+**Section C: Database & RLS - COMPLETE**
+
+- Modeled the database schema in `packages/db/prisma/schema.prisma`.
+- Manually ran the database migration by executing the generated SQL.
+- Created and applied Row-Level Security (RLS) policies for core tables.
+
+**Section D: Seed Data - COMPLETE**
+
+- Created a seed script at `packages/db/seed.js`.
+- Populated the database with sample data for users, providers, listings, and slots.
+
 **Next Step:**
 
-- Proceed to **Section C: Database & RLS**, starting with modeling the database schema in Prisma.
+- Proceed to **Section E: App shell & auth**, starting with building the main app layout and authentication pages.

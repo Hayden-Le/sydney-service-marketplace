@@ -1,0 +1,164 @@
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  role          String    @default("CUSTOMER") // CUSTOMER, PROVIDER, ADMIN
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  profile       ProviderProfile?
+  bookings      Booking[]
+  sentMessages  Message[]
+  reviews       Review[]
+  adminFlags    AdminFlag[]
+  auditLogs     AuditLog[]
+}
+
+model ProviderProfile {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id])
+  displayName String
+  abn         String?
+  gst         Boolean   @default(false)
+  bio         String?
+  heroPhotoUrl String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  listings    Listing[]
+}
+
+model Listing {
+  id              String    @id @default(uuid())
+  providerId      String
+  provider        ProviderProfile @relation(fields: [providerId], references: [id])
+  title           String
+  category        String
+  description     String
+  pricePerHour    Float
+  photos          Json      @default("[]")
+  location        Json      // { lat: number, lng: number, address: string }
+  avgRating       Float     @default(0)
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  availability    AvailabilitySlot[]
+  bookings        Booking[]
+  reviews         Review[]
+  adminFlags      AdminFlag[]
+
+  @@index([title, category])
+}
+
+model AvailabilitySlot {
+  id        String    @id @default(uuid())
+  listingId String
+  listing   Listing   @relation(fields: [listingId], references: [id])
+  startsAt  DateTime
+  endsAt    DateTime
+  status    String    @default("OPEN") // OPEN, HELD, BOOKED
+  heldUntil DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  booking   Booking?
+
+  @@index([listingId, startsAt])
+}
+
+model Booking {
+  id          String    @id @default(uuid())
+  customerId  String
+  customer    User      @relation(fields: [customerId], references: [id])
+  listingId   String
+  listing     Listing   @relation(fields: [listingId], references: [id])
+  slotId      String    @unique
+  slot        AvailabilitySlot @relation(fields: [slotId], references: [id])
+  hours       Int
+  subtotal    Float
+  gst         Float
+  total       Float
+  status      String    @default("PENDING_PAYMENT") // PENDING_PAYMENT, PAID, CANCELLED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  payment     Payment?
+  thread      Thread?
+  review      Review?
+
+  @@index([status])
+}
+
+model Payment {
+  id          String    @id @default(uuid())
+  bookingId   String    @unique
+  booking     Booking   @relation(fields: [bookingId], references: [id])
+  stripeChargeId String @unique
+  amount      Float
+  status      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Thread {
+  id        String    @id @default(uuid())
+  bookingId String    @unique
+  booking   Booking   @relation(fields: [bookingId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  threadId  String
+  thread    Thread   @relation(fields: [threadId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model AdminFlag {
+  id          String   @id @default(uuid())
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id])
+  reportedById String
+  reportedBy  User     @relation(fields: [reportedById], references: [id])
+  reason      String
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  actor     User     @relation(fields: [actorId], references: [id])
+  action    String
+  targetId  String
+  details   Json?
+  createdAt DateTime @default(now())
+}
